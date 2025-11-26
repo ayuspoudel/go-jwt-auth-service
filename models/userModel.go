@@ -6,7 +6,7 @@ Author: Ayush Poudel
 The below line is common in the definition of struct we will go over why are we using the code inside ``
 FirstName    *string            `json:"first_name" validate:"required,min=2,max=100"`
 These are called struct tags
-                 -----------
+
 Struct Tags
 -----------
 A struct tag is a string attached to a field
@@ -49,7 +49,7 @@ import (
 )
 
 type User struct {
-	ID           primitive.ObjectID `bson:"_id"`
+	Id           primitive.ObjectID `bson:"_id"`
 	FirstName    *string            `json:"first_name" validate:"required,min=2,max=100"`
 	LastName     *string            `json:"last_name" validate:"required,min=2,max=100"`
 	Email        *string            `json:"email" validate:"required,email"`
@@ -60,5 +60,5 @@ type User struct {
 	RefreshToken *string            `json:"refresh_token"`
 	CreatedAt    time.Time          `json:"created_at"`
 	UpdatedAt    time.Time          `json:"updated_at"`
-	UserId       *string            `json:"user_id"`
+	UserId       string             `json:"user_id"`
 }

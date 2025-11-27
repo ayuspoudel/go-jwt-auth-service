@@ -9,7 +9,16 @@ import (
 func CheckIfAdmin(c *gin.Context, role string) (err error) {
 	err = nil
 	if role != "ADMIN" {
-		err = errors.New("Access to this resource required Admin priveleges")
+		err = errors.New("access to this resource required Admin priveleges")
+	}
+	return err
+}
+
+func CheckUserType(c *gin.Context, role string) (err error) {
+	err = nil
+	userType := c.GetString("user_type")
+	if role != userType {
+		err = errors.New("unauthorized access to this resource")
 	}
 	return err
 }
@@ -21,7 +30,7 @@ func MatchUserTypeToUid(c *gin.Context, userId string) (err error) {
 	err = nil
 
 	if userType == "USER" && uid != userId {
-		err = errors.New("Unauthorized access to this resource.")
+		err = errors.New("unauthorized access to this resource")
 		return err
 	}
 

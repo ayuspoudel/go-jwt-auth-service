@@ -77,13 +77,17 @@ It does the following:
 package helpers
 
 import (
+	"context"
 	"log"
 	"os"
 	"time"
 
 	"github.com/ayuspoudel/go-jwt-auth-service/database"
 	jwt "github.com/dgrijalva/jwt-go"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 /*
@@ -202,4 +206,75 @@ func GenerateAllTokens(email string,
 		return "", "", err
 	}
 	return signedToken, signedRefreshToken, nil
+}
+
+func UpdateAllTokens(signedToken string, signedRefreshToken string, userId string) {
+	/*
+		Update Token:
+			1. It takes Refresh Token, Access Token and UserId as parameters
+			2. It creates a context with timeout of 100 seconds
+			3. It creates an update object of type primitive.D
+				- This is needed so we form a BSON object of type
+					{
+						token: "<token>"
+						refresh_token: "<refreshToken>"
+						updated_at: "<updatedAt>"
+					}
+			4. Then we filter if the is present in the collection or not
+				- This is done using bsom.M{"user_id": userId}
+				- bson.M is used for basic queries for this forms perfect bson object for us
+			5. Finally, we call userCollection using UpdateOne and pass context, filter, bson.D{{"$set", updateObj}}, &obj to function and see if we get any errors
+				- https://www.mongodb.com/docs/drivers/go/current/crud/update/
+			6. If there is an error we log it using log.Panic(err)
+			7. If everything is okay we simply return from the function
+	*/
+
+	// Create context for DB operation Timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	/*
+		This will store
+			{
+				token: "<token>"
+				refresh_token: "<refreshToken>"
+				updated_at: "<updatedAt>"
+			}
+	*/
+	var updateObj primitive.D
+
+	updateObj = append(updateObj, bson.E{Key: "token", Value: signedToken})
+	updateObj = append(updateObj, bson.E{Key: "refresh_token", Value: signedRefreshToken})
+	UpdatedAt, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	updateObj = append(updateObj, bson.E{Key: "updated_at", Value: UpdatedAt})
+
+	// This is a parameter required in UpdateOne() function so if the filter returns none if creates a document for that UserId
+	upsert := true
+
+	// To find the exact document that needs to be updated
+	filter := bson.M{"user_id": userId}
+
+	/*
+		opt is an extra configuration which will have {Upsert: true} which instructs mongoDB to insert new document if
+		no document matches the filter criteria.
+	*/
+	opt := options.UpdateOptions{
+		Upsert: &upsert,
+	}
+
+	/*
+		The UpdateOne method on a MongoDB collection in Go — (*mongo.Collection).UpdateOne(...) — is used to update a single document matching a filter.
+			- ctx: context for timeout / cancelation
+			- filter: a BSON document that matches which document(s) you want to update
+			- update: a BSON document that defines how you want to update (e.g. with $set, $inc, etc.)
+			- opts: optional — pointer(s) to options.UpdateOptions, to further customize behavior
+		$set allows to update a matching document's field in place in mongodb
+	*/
+	_, err := userCollection.UpdateOne(ctx, filter, bson.D{{"$set", updateObj}}, &opt)
+
+	if err != nil {
+		log.Panic(err)
+		return
+	}
+	return
 }
